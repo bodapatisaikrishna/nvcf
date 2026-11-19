@@ -45,7 +45,20 @@
             {
               "file": "environments/base.yaml",
               "paths": [
-                "global.nvcaOperator.selfManaged.otelCollector.imageTag"
+                "global.nvcaOperator.selfManaged.otelCollector.imageTag",
+                "global.nvcaOperator.byooOtelCollector.imageTag"
+              ]
+            }
+          ]
+        },
+        {
+          "service": "nvca",
+          "values_files": [
+            {
+              "file": "environments/base.yaml",
+              "paths": [
+                "global.nvcaOperator.imageTag",
+                "global.nvcaOperator.selfManaged.nvcaVersion"
               ]
             }
           ]
@@ -55,7 +68,10 @@
     {
       "id": "nvcf-self-managed-stack",
       "path": "deploy/stacks/self-managed",
-      "migration_paths": ["migrations/cassandra", "migrations/openbao"],
+      "migration_paths": [
+        "migrations/cassandra",
+        "migrations/openbao"
+      ],
       "service_name": "nvcf-self-managed-stack",
       "tag_format": "deploy/stacks/self-managed/v${version}",
       "version_file": "VERSION",
@@ -292,6 +308,7 @@
       "deploys": [
         {
           "service": "openbao-image",
+          "manual_bump_reason": "Server and agent pins must match the selected JWT plugin lifecycle mode; review the staged upgrade before changing them.",
           "values_paths": [
             "openbao.server.image.tag",
             "openbao.injector.agentImage.tag"
@@ -309,6 +326,7 @@
         },
         {
           "service": "openbao-migrations",
+          "manual_bump_reason": "Select migrations together with the OpenBao server and JWT plugin lifecycle mode in a reviewed upgrade.",
           "values_paths": [
             "openbao.migrations.image.tag"
           ]
@@ -339,6 +357,12 @@
       "deploys": []
     },
     {
+      "id": "worker-callback-proxy-helm",
+      "path": "deploy/helm/worker-callback-proxy",
+      "service_name": "helm-nvcf-worker-callback-proxy",
+      "deploys": []
+    },
+    {
       "id": "llm-request-router",
       "path": "deploy/helm/llm-request-router",
       "service_name": "helm-nvcf-llm-request-router",
@@ -366,7 +390,6 @@
       "service_name": "helm-nvca-operator",
       "legacy_tag_prefix": "helm-nvca-operator-v",
       "deploys": [
-        "nvca",
         {
           "service": "byoo-otel-collector",
           "values_paths": [
@@ -376,7 +399,8 @@
             "selfManaged.otelCollector.imageTag"
           ]
         }
-      ]
+      ],
+      "app_version_source": "nvca"
     },
     {
       "id": "cassandra-migrations",
@@ -401,6 +425,17 @@
       "path": "src/compute-plane-services/worker-task",
       "service_name": "nvcf-worker-task",
       "legacy_tag_prefix": "nvcf-worker-task-v"
+    },
+    {
+      "id": "nvsnap",
+      "path": "src/compute-plane-services/nvsnap",
+      "service_name": "nvsnap"
+    },
+    {
+      "id": "nvstor",
+      "path": "src/compute-plane-services/nvstor",
+      "service_name": "nvstor",
+      "initial_version": "0.2.0"
     },
     {
       "id": "cloud-tasks",
@@ -456,7 +491,19 @@
       "service_name": "helm-nvcf-nvct-api",
       "initial_version": "1.4.4",
       "deploys": [
-        "cloud-tasks"
+        "cloud-tasks",
+        {
+          "service": "worker-init",
+          "values_paths": [
+            "nvctApi.remoteConfig.workerImageTags.init"
+          ]
+        },
+        {
+          "service": "worker-task",
+          "values_paths": [
+            "nvctApi.remoteConfig.workerImageTags.task"
+          ]
+        }
       ]
     },
     {
@@ -474,7 +521,31 @@
       "service_name": "helm-nvcf-api",
       "initial_version": "1.23.11",
       "deploys": [
-        "cloud-functions"
+        {
+          "service": "cloud-functions",
+          "values_paths": [
+            "api.image.tag"
+          ],
+          "app_version": true
+        },
+        {
+          "service": "worker-init",
+          "values_paths": [
+            "api.remoteConfig.workerImageTags.init"
+          ]
+        },
+        {
+          "service": "worker-utils",
+          "values_paths": [
+            "api.remoteConfig.workerImageTags.utils"
+          ]
+        },
+        {
+          "service": "worker-llm-credentials",
+          "values_paths": [
+            "api.remoteConfig.workerImageTags.llmCredentials"
+          ]
+        }
       ]
     },
     {
@@ -492,6 +563,12 @@
       "id": "nvcf-ui",
       "path": "src/uis/nvcf-ui",
       "service_name": "nvcf-ui"
+    },
+    {
+      "id": "openai-compatible-sample",
+      "path": "examples/function-samples/openai-compatible-sample",
+      "service_name": "nvcf-openai-compatible-sample",
+      "initial_version": "5.0.0"
     }
   ]
 }

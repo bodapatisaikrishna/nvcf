@@ -52,6 +52,7 @@ pub struct FunctionMetadata {
 pub struct ApiClient {
     pub subject: String,
     pub nca_id: String,
+    pub owner_nca_id: String,
 }
 
 pub const HEALTH_CACHE_TTL: u16 = 1;
@@ -118,6 +119,7 @@ impl ApiMock {
                 None => client.nca_id.clone(),
                 Some(nca_id) => nca_id,
             },
+            client_owner_nca_id: client.owner_nca_id.clone(),
         }))
     }
 
@@ -186,6 +188,14 @@ impl ApiMockServer {
             health_cache_ttl: Duration::from_secs(HEALTH_CACHE_TTL.into()),
             auth_cache_ttl: Duration::from_secs(AUTH_CACHE_TTL.into()),
         }
+    }
+    /// Register an independent authenticated identity for caller isolation tests.
+    pub async fn add_client(&self, token: &str, client: ApiClient) {
+        self.api_mock
+            .lock()
+            .await
+            .clients
+            .insert(token.into(), client);
     }
     pub async fn set_healthy(&self) {
         self.reporter

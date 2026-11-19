@@ -38,13 +38,19 @@ pub struct InferenceServerRegistrationConfig {
     pub cluster_id: String,
     pub inference_server_url: String,
     pub forwarding: TunnelForwardingConfig,
+    /// Heartbeat interval: the longest gap between registration updates.
     pub min_update_interval: Duration,
+    /// Minimum gap between updates triggered by stats or status changes.
+    pub stats_update_coalesce: Duration,
     pub reverse_tunnel: bool,
     pub tls_cert_pem: Option<Vec<u8>>,
     pub grpc_tls_ca_cert_pem: Option<Vec<u8>>,
     pub quic_insecure: bool,
     pub tunnel_protocol: TunnelTransportProtocol,
     pub auth_token_provider: Option<Arc<AuthTokenProvider>>,
+    /// Longest shutdown wait, counted from SIGTERM. It covers the accept
+    /// window, the in-flight drain, and the final tunnel wait.
+    pub shutdown_drain_timeout: Duration,
 }
 
 #[derive(Debug)]
@@ -55,12 +61,14 @@ pub(super) struct RegistrationSessionConfig {
     pub(super) inference_server_url: String,
     pub(super) forwarding: TunnelForwardingConfig,
     pub(super) min_update_interval: Duration,
+    pub(super) stats_update_coalesce: Duration,
     pub(super) reverse_tunnel: bool,
     pub(super) tls_cert_pem: Option<Vec<u8>>,
     pub(super) grpc_tls_ca_cert_pem: Option<Vec<u8>>,
     pub(super) quic_insecure: bool,
     pub(super) tunnel_protocol: TunnelTransportProtocol,
     pub(super) auth_token_provider: Option<Arc<AuthTokenProvider>>,
+    pub(super) shutdown_drain_timeout: Duration,
 }
 
 impl TryFrom<InferenceServerRegistrationConfig> for RegistrationSessionConfig {
@@ -97,12 +105,14 @@ impl TryFrom<InferenceServerRegistrationConfig> for RegistrationSessionConfig {
             inference_server_url,
             forwarding: config.forwarding,
             min_update_interval: config.min_update_interval,
+            stats_update_coalesce: config.stats_update_coalesce,
             reverse_tunnel: config.reverse_tunnel,
             tls_cert_pem: config.tls_cert_pem,
             grpc_tls_ca_cert_pem: config.grpc_tls_ca_cert_pem,
             quic_insecure: config.quic_insecure,
             tunnel_protocol: config.tunnel_protocol,
             auth_token_provider: config.auth_token_provider,
+            shutdown_drain_timeout: config.shutdown_drain_timeout,
         })
     }
 }

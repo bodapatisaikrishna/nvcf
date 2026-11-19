@@ -3,16 +3,16 @@
 If you are interested in contributing to NVCF, your contributions will fall into three categories:
 
 1. You want to report a bug, feature idea, or documentation issue
-   - File an [issue](https://github.com/NVIDIA/nvcf/issues/new/choose) describing what you encountered or what you want to see changed.
+   - File an [issue](https://github.com/dsx-ai-factory/nvcf/issues/new/choose) describing what you encountered or what you want to see changed.
    - The NVCF team will evaluate and triage issues. Maintainers assign labels and priority. If you believe an issue needs priority attention, comment on the issue to notify the team.
 2. You want to propose a new feature and implement it
-   - File a [feature issue](https://github.com/NVIDIA/nvcf/issues/new/choose) describing your intended feature, and we shall discuss the design and implementation there.
+   - File a [feature issue](https://github.com/dsx-ai-factory/nvcf/issues/new/choose) describing your intended feature, and we shall discuss the design and implementation there.
    - Once we agree that the plan looks good, go ahead and implement it, using the code contributions guide below.
 3. You want to implement a feature or bug fix for an outstanding issue
    - Follow the code contributions guide below.
    - If you need more context on a particular issue, start a discussion on the issue.
 
-Use [GitHub Discussions](https://github.com/NVIDIA/nvcf/discussions) for support and usage help. Maintainer triage rules are documented in [`.github/ISSUE_TRIAGE.md`](.github/ISSUE_TRIAGE.md).
+Use [GitHub Discussions](https://github.com/dsx-ai-factory/nvcf/discussions) for support and usage help. Maintainer triage rules are documented in [`.github/ISSUE_TRIAGE.md`](.github/ISSUE_TRIAGE.md).
 
 ---
 
@@ -28,8 +28,8 @@ All participants are expected to abide by our [Code of Conduct](CODE_OF_CONDUCT.
 
 New to the project? Look for issues labelled:
 
-- [good-first-issue](https://github.com/NVIDIA/nvcf/issues?q=is%3Aissue+is%3Aopen+label%3Agood-first-issue): beginner-friendly, with guidance.
-- [help-wanted](https://github.com/NVIDIA/nvcf/issues?q=is%3Aissue+is%3Aopen+label%3Ahelp-wanted): community contributions welcome.
+- [good-first-issue](https://github.com/dsx-ai-factory/nvcf/issues?q=is%3Aissue+is%3Aopen+label%3Agood-first-issue): beginner-friendly, with guidance.
+- [help-wanted](https://github.com/dsx-ai-factory/nvcf/issues?q=is%3Aissue+is%3Aopen+label%3Ahelp-wanted): community contributions welcome.
 
 ### Claiming an Issue
 
@@ -65,7 +65,10 @@ Name your branch using your username and a prefix that reflects the type of chan
 - `yourname/fix/description`: bug fix (for example, `jsmith/fix/router-timeout`)
 - `yourname/docs/description`: documentation change (for example, `jsmith/docs/update-quickstart`)
 
-Branch model: `main` is the active development branch. All PRs target `main`, except hotfixes. Stable releases are cut from `release-x.y` branches.
+Branch model: `main` is the active development branch. Target maintenance fixes
+at the owning component train when needed. Services and charts can release from
+main; stacks release from their maintenance branches. Follow the
+[release workflow](docs/dev/github-release-process.md) for branch names and gates.
 
 ### Step 3: Make Your Changes
 
@@ -95,7 +98,10 @@ Commit with a DCO sign-off and a conventional commit message (see [Commit Messag
 
 ### Step 6: Open a Pull Request
 
-- Push your branch and open a PR targeting `main`.
+- Push your branch and open a PR targeting the branch selected by the
+  [release workflow](docs/dev/github-release-process.md): `main` for new
+  development or compatible patches on its current minor, or the owning
+  maintenance branch when required.
 - Use the [PR template](.github/PULL_REQUEST_TEMPLATE.md) when opening your pull request.
 - Reference the related issue in the PR description with `Fixes #123`.
 - Someone will review your PR soon!
@@ -165,21 +171,38 @@ For more information, see the [Developer Certificate of Origin](https://develope
 
 ## Documentation Contributions
 
-Documentation content lives under `docs/`. Fern publishes one site with four products: Overview plus one product per Helm stack. Each stack product has its own version menu. `fern/docs.yml` declares the products and their versions, and navigation files live under `fern/products/`.
+Documentation lives under `docs/`. Fern publishes one docs edition menu with
+Overview, Self-Managed, Compute Plane, Observability, Manifest, and Release Notes
+tabs.
+Each edition records the exact three-stack combination; artifact releases keep
+their own versions.
 
-| Path | Audience | Published | Versioning role |
-|---|---|---|---|
-| `docs/overview/` | Customers | Yes | Unversioned shared content: compatibility matrix, quickstart, manifest, image mirroring, local development, shared images and samples. Publishes at `/nvcf/overview/`. |
-| `docs/self-managed/`, `docs/compute-plane/`, `docs/observability/` | Customers | Yes | Top-of-tree content for one stack, published as that product's `dev` version at `/nvcf/<stack>/dev/`. |
-| `docs/<stack>-<version>/` | Customers on a stack release | Yes | Frozen content for one exact stack version, for example `docs/observability-1.3.2/`. Publishes at `/nvcf/<stack>/<version>/`. |
-| `docs/v0.5/`, `docs/v0.6.0/`, `docs/v0.6.1/`, `docs/cp-*/` | Customers on legacy releases | Yes | Frozen legacy full-tree content from before the per-stack split, attached to the Self-Managed Stack product. |
-| `docs/dev/` | Contributors / internal dev | Only if symlinked | Developer-oriented source pages. These are published only when a symlink from a product tree is listed in that product's Fern nav. |
-| `fern/docs.yml` | Docs site | Yes | Declares products, their versions, display names, slugs, and the nav file for each version. |
-| `fern/products/overview.yml`, `fern/products/<stack>/*.yml` | Docs site | Yes | Defines navigation and page order for one product version. Page paths are relative to the nav file. |
+| Path | Purpose |
+| --- | --- |
+| `docs/overview/` | Shared guides and generated compatibility/manifest content for the selected edition. |
+| `docs/self-managed/`, `docs/compute-plane/`, `docs/observability/` | Current stack sources, published as Development from `main`. |
+| `docs/<stack>-<version>/`, `docs/v*/` | Frozen historical archives. Change only for an explicitly approved historical fix. |
+| `docs/dev/` | Contributor guides; published only when navigation or a navigated symlink includes them. |
+| `fern/docs.yml`, `fern/editions.yml` | Canonical selector and exact protected release-branch commits. |
+| `fern/navigation.yml` | Current six-tab navigation with explicit page slugs. |
+| `fern/changelog/` | Native release notes with dated MDX entries. |
+| `fern/products/` | Retained historical navigation. |
 
-A page belongs to exactly one product. Use the product tree that owns the page for changes that should appear in `dev`. Edit frozen trees only for fixes that must also apply to that released version. When adding, renaming, moving, or removing a published page, update the matching nav file under `fern/products/`. Links to pages in another product must be absolute site paths such as `/nvcf/overview/quickstart`, because Fern resolves relative links inside the rendering product.
+Edit current sources and update `fern/navigation.yml` when changing pages.
+Use relative source-file links across tabs to preserve the selected edition.
+Use an absolute product/version URL only for an intentional historical link.
+Do not rewrite archive sources or update an existing docs release branch.
 
-All navigation sections use `skip-slug: true`, so each page title becomes a flat URL slug within its product version. Keep page titles unique and descriptive within each product nav. Run `fern check` to validate the docs after any navigation or link change. Preview locally with `fern docs dev` from the `fern/` directory.
+Run `./tools/ci/check-docs` before submitting. Preview the working tree with
+`tools/ci/run-fern docs dev`, or validate the Development-first PR configuration:
+
+```bash
+tools/ci/preview-docs --check
+```
+
+Stable editions use protected `docs/releases/X.Y.Z` branches, not copied
+version folders or docs tags. See [the release workflow](docs/dev/docs-editions.md)
+for qualification, preparation, registration, corrections, and rollback.
 
 ---
 
@@ -191,9 +214,9 @@ If you discover a security vulnerability, please follow the instructions in our 
 
 ## Getting Help
 
-- GitHub Issues, for bug reports, feature ideas, and documentation issues: https://github.com/NVIDIA/nvcf/issues
-- GitHub Discussions, for support and usage help: https://github.com/NVIDIA/nvcf/discussions
-- GitHub Pull Requests, for code contributions: https://github.com/NVIDIA/nvcf/pulls
+- GitHub Issues, for bug reports, feature ideas, and documentation issues: https://github.com/dsx-ai-factory/nvcf/issues
+- GitHub Discussions, for support and usage help: https://github.com/dsx-ai-factory/nvcf/discussions
+- GitHub Pull Requests, for code contributions: https://github.com/dsx-ai-factory/nvcf/pulls
 
 For support or usage uncertainty, start with GitHub Discussions. For feature ideas, file an issue.
 

@@ -216,7 +216,10 @@ EOF
 
 Split or multi-cluster gRPC invocation needs an additional TCP listener for the
 worker callback path. Add this listener only when enabling split or
-multi-cluster gRPC invocation.
+multi-cluster gRPC invocation. To run more than one grpc-proxy or
+invocation-service replica with workers in another cluster, use the
+[Worker Callback Proxy](./worker-callback-proxy.md) instead. It needs DNS for
+its own worker domain and no Gateway listener.
 
 ```yaml
   - name: worker-tcp
@@ -416,7 +419,7 @@ HTTPS.
 
 | Install path | Gateway values to use |
 | --- | --- |
-| [Quickstart](/nvcf/overview/quickstart) | Do not use these remote Gateway values. The quickstart uses local k3d route hostnames. |
+| [Quickstart](../overview/quickstart.md) | Do not use these remote Gateway values. The quickstart uses local k3d route hostnames. |
 | [Helmfile Installation](./helmfile-installation.md) | Use `GATEWAY_ADDR` as `global.domain`, and set `ingress.gatewayApi.gateways` to the Gateway names, namespaces, and listener names from Gateway quickstart. |
 
 ## Configure the CLI for Gateway access
@@ -585,7 +588,7 @@ These resources must be created manually before deploying the control plane:
 When you deploy the control plane via helmfile, the `nvcf-gateway-routes` chart automatically creates:
 
 - `HTTPRoutes` for API Keys, NVCF API, and Invocation services
-- Optional LLM invocation HTTPRoute when the `llmInvocation` route is enabled
+- Optional LLM API and LLM invocation HTTPRoutes when the LLM add-on is enabled
 - Optional Vanity Gateway HTTPRoute only when the stack package includes the addon and the `vanityGateway` route is enabled
 - Optional NVCF UI HTTPRoute only when the stack package includes the addon and the `nvcfUi` route is enabled
 - `TCPRoute` for gRPC
@@ -609,9 +612,11 @@ These routes attach to the Gateway you prepared in [Gateway quickstart](./gatewa
 | API Keys | `api-keys.<domain>` | 80 | Token generation and API key management |
 | NVCF API | `api.<domain>` | 80 | Function management (create, deploy, delete) |
 | Invocation | `invocation.<domain>`, `*.invocation.<domain>` | 80 | Function invocation (wildcard for dynamic routing) |
-| LLM Invocation | `llm.invocation.<domain>` | 80 | OpenAI-compatible LLM invocation routes such as `/v1/chat/completions`, `/v1/responses`, and `/v1/embeddings` |
+| LLM API | `llm.<domain>` | 80 | Optional routing to `llm-api-gateway.nvcf:8080`, created when the LLM add-on is enabled |
+| LLM Invocation | `llm.invocation.<domain>` | 80 | LLM invocation routes such as `/v1/chat/completions`, `/v1/responses`, `/v1/embeddings`, and the beta `/v1/decisions` and `/v1/systemone` |
 | Vanity Gateway | `vanity.<domain>` | 80 | Optional vanity host/path routing to `vanity-gateway.nvcf:8080`, only in stack packages that include the addon |
 | NVCF UI | `nvcf-ui.<domain>` | 80 | Optional nvcf-ui host/path routing to `nvcf-ui.nvcf-ui:8300`, only in stack packages that include the addon |
+| Event Ledger | `events.<domain>` | 80 | Optional routing to `event-ledger.nvcf:8080`, created when the Event Ledger addon is enabled. See [Enable and Operate Event Ledger](./event-ledger.md) |
 | gRPC | N/A (TCP routing, no hostname matching) | 10081 | gRPC function invocations |
 | gRPC worker callback | N/A (TCP routing, no hostname matching) | 10086 | HTTP/1 CONNECT callback from workers to grpc-proxy when the beta `grpcWorker` route is enabled |
 | NATS | N/A (TCP routing, no hostname matching) | 4222 | NVCA messaging when the NATS route is enabled |
@@ -631,9 +636,9 @@ When the LLM invocation route is enabled in self-managed deployments, send OpenA
 ### Invocation Path Diagrams
 
 For local and multi-cluster invocation-path diagrams, see
-[Generic HTTP Function Invocation](/nvcf/overview/generic-http-function-invocation),
-[gRPC Function Invocation](/nvcf/overview/g-rpc-function-invocation), and
-[LLM Gateway](/nvcf/overview/llm-gateway).
+[Generic HTTP Function Invocation](../overview/generic-http-function-invocation.md),
+[gRPC Function Invocation](../overview/grpc-function-invocation.md), and
+[LLM Gateway](../overview/llm-gateway.md).
 
 ### Vanity Gateway (Optional)
 
@@ -829,7 +834,7 @@ Without the correct `Host` header, the gateway cannot match the request to an HT
 The NVCA agent on a self-managed GPU cluster has the same requirement when it reaches the
 control plane through a load-balancer-fronted gateway. Configure its host-header overrides
 in the operator values, not the CLI config. See
-[self-managed-clusters](/nvcf/compute-plane/self-managed-clusters).
+[self-managed-clusters](../compute-plane/cluster-management/self-managed.md).
 
 </Note>
 
@@ -842,9 +847,26 @@ Host header routing only works with plaintext HTTP traffic. Without TLS/SNI spoo
 
 When using tools that support custom Host headers (like the NVCF CLI or curl), specify the expected hostname:
 
+<Warning>
+Admin Issuer Proxy is a bootstrap helper. `POST /v1/admin/keys` issues an
+admin-scoped token without authenticating callers or checking their permission
+to obtain one. Before exposing this endpoint to untrusted callers, configure
+authentication and authorization at your gateway or an upstream proxy.
+An HTTPRoute does not configure these controls by itself. Use the Gateway
+controller and identity provider that fit your deployment.
+
+You can disable the issuer or only its Gateway route. See
+[Disabling Admin Issuer Proxy](./control-plane-operations.md#disabling-admin-issuer-proxy)
+for configuration, CLI impacts, and removal steps for existing installations.
+
+</Warning>
+
+The following plaintext HTTP example is for a trusted development environment.
+It demonstrates routing and does not configure authentication.
+
 ```bash
 # Example: curl with Host header override
-curl -H "Host: api-keys.a1b2c3d4.us-west-2.elb.amazonaws.com" \
+curl -X POST -H "Host: api-keys.a1b2c3d4.us-west-2.elb.amazonaws.com" \
   http://a1b2c3d4.us-west-2.elb.amazonaws.com/v1/admin/keys
 ```
 
@@ -863,7 +885,7 @@ api_host: "api.a1b2c3d4.us-west-2.elb.amazonaws.com"
 invoke_host: "invocation.a1b2c3d4.us-west-2.elb.amazonaws.com"
 ```
 
-See [cli-configuration](/nvcf/overview/cli) for complete CLI configuration documentation.
+See [cli-configuration](../overview/cli.md) for complete CLI configuration documentation.
 
 ## Production: DNS and HTTPS
 
@@ -1114,6 +1136,6 @@ For gRPC connection problems:
 ## Related Documentation
 
 - [helmfile-installation](./helmfile-installation.md) - Helmfile values that consume Gateway quickstart outputs
-- [cli-configuration](/nvcf/overview/cli) - CLI configuration including Host header settings
+- [cli-configuration](../overview/cli.md) - CLI configuration including Host header settings
 - [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/)
 - [Envoy Gateway](https://gateway.envoyproxy.io/)

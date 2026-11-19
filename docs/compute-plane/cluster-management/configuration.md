@@ -19,7 +19,7 @@ See below for descriptions of all available configuration options.
 | Priority Class                            | Set appropriate kubernetes priority class name for cluster agent and the operator pod. Additional details: [Priority Class](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#priorityclass)                                                                                                                                                                                                                                                                                                                                               |
 | Model Cache Volume Mount Options          | Configure the model cache volume mount options based on the CSI Driver capabilities on the cluster. Refer to the CSI Driver documentation. Defaults to `Enabled` and `ro,norecovery,nouuid` on an upgrade. Requires cluster reconfiguration after upgrade to prevent disruption.Additional details: [Mount options](https://man7.org/linux/man-pages/man8/mount.8.html)                                                                                                                                                                                                   |
 | Network CIDR Range                        | Quoted & comma separated list of CIDR range for outbound network access for the infrastructure components & workloads on the cluster.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Worker Degradation Period                 | Stabilization time (in minutes) before cluster agent fails to consider a worker as healthy and initiates a purge. This also affects terminal worker failure timing for Helm functions that enable `StatusByWorkerReadiness`. See [Helm Functions](/nvcf/overview/helm-functions#use-worker-readiness-for-function-health).                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Worker Degradation Period                 | Stabilization time (in minutes) before cluster agent fails to consider a worker as healthy and initiates a purge. This also affects terminal worker failure timing for Helm functions that enable `StatusByWorkerReadiness`. See [Helm Functions](../../overview/helm-functions.md#use-worker-readiness-for-function-health).                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ## Cluster Features
 
@@ -301,7 +301,7 @@ The NVCA operator requires outbound network connectivity to pull images, charts,
 2. **Container Registry and NVCF Control Plane Access**
 
    - NVCA requires access to your container registry to pull images and Helm charts.
-   - NVCA requires network access to NVCF control plane services (SIS, NATS, ESS) running in your cluster. The specific endpoints depend on your gateway configuration. See [gateway-routing](/nvcf/self-managed/gateway-routing) for details.
+   - NVCA requires network access to NVCF control plane services (SIS, NATS, ESS) running in your cluster. The specific endpoints depend on your gateway configuration. See [gateway-routing](../../self-managed/gateway-routing.md) for details.
 
 3. **Monitoring and Logging**
 
@@ -859,7 +859,7 @@ agentConfig:
 `--quic-insecure` to the `pylon` sidecar. Use it only for local or
 isolated test clusters that run the LLM request router tunnel without TLS. For
 the full LLM addon setup, see
-[LLM Function Enablement](/nvcf/self-managed/llm-function-enablement).
+[LLM Function Enablement](../../self-managed/llm-function-enablement.md).
 
 BYOO collector debug and log chunking example:
 
@@ -905,6 +905,33 @@ For `hash_seed`, use `0` or a percentage of at least `0.006103515625`.
 `fromAttribute`. Set `failClosed: true` to reject log records without usable
 randomness. If you configure `samplingPriority`, record values must be greater
 than `0`; zero is not supported by the pinned collector version.
+
+BYOO platform metrics federation example. This block is a top-level
+`nvca-operator` chart value, not part of `agentConfig.mergeConfig`. Put it in
+a values file passed with `helm upgrade -f`:
+
+```yaml
+byoo:
+  otelCollector:
+    platformMetricsFederation:
+      target: vmsingle.monitoring.svc.cluster.local:8428
+```
+
+On Kubernetes clusters, the BYOO collector reads platform metrics for its
+workload from a Prometheus-compatible `/federate` endpoint: worker, NVCA,
+cAdvisor, kube-state-metrics, and DCGM series. `target` is the `host:port`
+of that server, reached over HTTP. Set `enabled: false` to remove the
+federation scrape jobs; the collector still exports the metrics, logs, and
+traces that the workload sends.
+
+Self-managed clusters disable federation unless `enabled` or `target` is set,
+because the self-managed stacks do not deploy the Prometheus that the
+collector federates from by default. On other clusters, federation stays on
+with the default target. The `allow-egress-prometheus-nvcf-byoo` network
+policy allows only that default Prometheus. If NVCA applies network policies
+to workload namespaces and you set a different target, add a matching egress
+policy with `networkPolicy.customPolicies`. Collector images that predate this
+setting ignore it.
 
 BYOO metric subset example:
 

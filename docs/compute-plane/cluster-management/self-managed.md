@@ -9,27 +9,25 @@ local ConfigMap and authenticates through the local OpenBao (Vault) instance.
 
 <Info>
 A running NVCF control plane (SIS, OpenBao, NATS, Cassandra, and all core
-services) is required. The [Quickstart](/nvcf/overview/quickstart) can install the
+services) is required. The [Quickstart](../../overview/quickstart.md) can install the
 control plane and register a GPU cluster in one flow. Use this page when you
 need to install or operate the NVCA Operator after using the Helmfile
 installation path.
 
 </Info>
 
-Clone the public repository and run the compute-plane commands from its root:
-
-```bash
-git clone https://github.com/nvidia/nvcf.git
-cd nvcf
-```
+Obtain the selected stack packages using [Consume an NVCF release](../../overview/umbrella-releases.md).
+Run the commands below from the extracted `BUNDLE_DIR`, with the compute-plane
+and control-plane directories kept as siblings. A source checkout is needed
+only when developing from source.
 
 ## Prerequisites
 
 Before installing the NVCA Operator, ensure the following prerequisites are met:
 
-- The [control plane](/nvcf/self-managed/helmfile-installation) is installed and all core services are running.
+- The [control plane](../../self-managed/helmfile-installation.md) is installed and all core services are running.
 
-- The [NVIDIA GPU Operator](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/getting-started.html) is installed on the GPU cluster. The GPU Operator manages the NVIDIA drivers, device plugin, and GPU feature discovery required for workload scheduling. For development or testing environments without physical GPUs, see [fake-gpu-operator](../fake-gpu-operator).
+- The [NVIDIA GPU Operator](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/getting-started.html) is installed on the GPU cluster. The GPU Operator manages the NVIDIA drivers, device plugin, and GPU feature discovery required for workload scheduling. For development or testing environments without physical GPUs, see [fake-gpu-operator](../../dev/fake-gpu-operator.md).
 
 - (Optional) Install [KAI Scheduler](./kai-scheduler.md) for GPU bin-packing
   and queues. KAI is also the scheduling foundation for
@@ -37,10 +35,10 @@ Before installing the NVCA Operator, ensure the following prerequisites are met:
   [topology-aware scheduling](./topology-aware-scheduling.md) with Grove and
   Dynamo.
 
-- `GPU Workload Components` must be available in a user-managed registry that your Kubernetes cluster can access. See `GPU Workload Components` under [self-hosted-artifact-manifest](/nvcf/overview/manifest) for necessary artifacts and [self-hosted-image-mirroring](/nvcf/overview/image-mirroring) for mirroring instructions.
+- `GPU Workload Components` must be available in a user-managed registry that your Kubernetes cluster can access. See `GPU Workload Components` under [self-hosted-artifact-manifest](../../overview/manifest.md) for necessary artifacts and [self-hosted-image-mirroring](../../overview/image-mirroring.md) for mirroring instructions.
 
 - `nvcf-cli` is available on the deployment machine. The compute-plane Makefile
-  calls it during cluster registration. See [self-hosted-cli](/nvcf/overview/cli) for
+  calls it during cluster registration. See [self-hosted-cli](../../overview/cli.md) for
   CLI installation and configuration.
 
 - The [SMB CSI driver](https://github.com/kubernetes-csi/csi-driver-smb) (`smb.csi.k8s.io`) must be installed on the GPU cluster. It is required for NVCA shared model cache storage (samba sidecar). Install it with:
@@ -63,7 +61,7 @@ step, and the operator consumes it:
 2. You export the control-plane profile. The profile is the canonical handoff
    for the control-plane identity, reachable endpoints, host overrides, and
    transport trust.
-3. From the repository root, you run
+3. From the extracted bundle root, you run
    `make -C deploy/stacks/nvcf-compute-plane register-cluster` (see
    [Register the cluster](#register-the-cluster)). The target runs
    `nvcf-cli self-hosted compute-plane register` with the profile. The CLI
@@ -71,7 +69,7 @@ step, and the operator consumes it:
    the control plane (ICMS), and writes the `clusterID`, `clusterGroupID`,
    identity source, endpoints, host overrides, and transport trust to a
    registration values file.
-4. From the repository root, you run
+4. From the extracted bundle root, you run
    `make -C deploy/stacks/nvcf-compute-plane install`. Helmfile installs
    `helm-nvca-operator` with the compute-plane environment and registration
    values for that cluster, using the same selected kubeconfig context as
@@ -112,30 +110,19 @@ sequenceDiagram
 
 ## Configure the compute plane
 
-Create the environment file from the repository root. It provides the chart
+Create the environment file from the extracted bundle root. It provides the chart
 registry, image registry, image pull secret name, and deployment-specific
 overrides used by the NVCA operator. The generated registration values provide
 the control-plane service URLs and host overrides.
 
 ```bash
-cd path/to/nvcf
+cd "$BUNDLE_DIR"
 touch deploy/stacks/nvcf-compute-plane/environments/<environment-name>.yaml
 ```
 
-```yaml title="deploy/stacks/nvcf-compute-plane/environments/<environment-name>.yaml"
-global:
-  helm:
-    sources:
-      registry: <your-chart-registry>
-      repository: <your-chart-repository>
-
-  image:
-    registry: <your-image-registry>
-    repository: <your-image-repository>
-
-  imagePullSecrets:
-    - name: nvcr-pull-secret
-```
+Start with the [chart and image access settings](../../self-managed/helmfile-installation.md#configure-artifact-access).
+Use the same selected chart and image source as the control plane. Add the
+compute-specific settings below to that environment file.
 
 The profile exporter derives the service URLs and route-matching host overrides
 from the selected control-plane environment, and registration writes them as
@@ -145,15 +132,15 @@ the default values for the compute-plane install. Non-empty
 `revalServiceHostHeaderOverride`, `natsURL`, and `natsHostOverride` fields in
 the selected compute-plane environment take precedence. Verify the effective
 compute-reachable endpoints from those inputs resolve from the GPU cluster. See
-[gateway-routing](/nvcf/self-managed/gateway-routing) for service DNS and TLS guidance.
+[gateway-routing](../../self-managed/gateway-routing.md) for service DNS and TLS guidance.
 
 ## Register the cluster
 
 Register the GPU cluster with the control plane before installing the operator.
 The `nvcf-cli` discovers the cluster's OIDC issuer and JWKS and records them
 with the control plane, then returns the Helm values the operator needs. See
-[self-hosted-cli](/nvcf/overview/cli) for CLI installation and configuration, and the
-[Cluster Registration](/nvcf/overview/cli#cluster-registration) reference for full flag
+[self-hosted-cli](../../overview/cli.md) for CLI installation and configuration, and the
+[Cluster Registration](../../overview/cli.md#cluster-registration) reference for full flag
 and output details.
 
 <Note>
@@ -225,7 +212,7 @@ running Helmfile.
 
 | Chart | `helm-nvca-operator` |
 | --- | --- |
-| Version | `1.28.0` |
+| Version | `1.37.1` |
 | Namespace | `nvca-operator` |
 | Depends on | All control-plane services and gateway must be running |
 
@@ -241,6 +228,23 @@ The compute-plane Helmfile passes these values to the chart:
 Use `global.nvcaOperator.nodeSelector`, `global.nvcaOperator.tolerations`, and
 `global.nvcaOperator.agent.*` in the compute-plane environment when you need to
 place the operator, agent, or workloads on specific nodes.
+
+Registering a compute plane does not enable the NVCA OTel collector, even when
+the control plane runs the Event Ledger. A control plane can have many
+registered compute planes, and some are registered through GitOps rather than
+the CLI, so set `global.nvcaOperator.selfManaged.otelCollector.enabled: true`
+explicitly in `environments/<environment-name>.yaml` for each compute plane
+that should send its events to the Event Ledger. Also set
+`global.nvcaOperator.selfManaged.eventLedgerServiceURL` there when the compute
+plane is in a different cluster than the control plane; leave it empty when
+they share a cluster, since the collector then defaults to the in-cluster
+Event Ledger Service.
+
+The collector image is optional and must be present in the registry configured
+by `global.image` before it is enabled. See
+[Enable and Operate Event Ledger](../../self-managed/event-ledger.md#enable-the-compute-plane-collector)
+for image configuration, colocated and split-cluster examples, verification,
+and troubleshooting.
 
 <Warning>
 The `KAIScheduler` feature flag is optional. Enable it only if the
@@ -476,7 +480,11 @@ control-plane worker endpoints used by NVCF. For multi-cluster EKS installs,
 first validate the GPU cluster by checking `nvca-operator` rollout and
 `NVCFBackend` agent health. Function deployment and invocation are valid
 acceptance checks only after the worker endpoints are reachable from the GPU
-cluster.
+cluster. When the control plane runs the
+[Worker Callback Proxy](../../self-managed/worker-callback-proxy.md), the GPU
+cluster must also resolve `*.<workerDomain>` to the proxy and trust its CA
+(`global.nvcaOperator.agent.workerCallbackCaPem`); see that page to validate
+them.
 
 1. Set up environment variables:
 
@@ -586,7 +594,7 @@ The `instanceType` and `gpu` values depend on the GPU types available in your cl
 For invocation, the Host header uses wildcard subdomain routing: `<function-id>.invocation.<gateway-addr>`.
 The URL path should match the function's `inferenceUrl` (e.g., `/echo`).
 For full HTTP invocation behavior, streaming, and errors, see
-[Generic HTTP Function Invocation](/nvcf/overview/generic-http-function-invocation).
+[Generic HTTP Function Invocation](../../overview/generic-http-function-invocation.md).
 
 </Note>
 
@@ -595,7 +603,7 @@ You can also use the NVCF CLI for easier function management:
 - Create, deploy, and invoke functions with simple commands
 - Create or update registry credentials without manual API calls
 
-See [self-hosted-cli](/nvcf/overview/cli) for installation and usage instructions.
+See [self-hosted-cli](../../overview/cli.md) for installation and usage instructions.
 
 ## Re-registering a cluster
 
@@ -696,7 +704,7 @@ deletion. If you encounter stuck resources, see [Handling Stuck Resources] below
 ### Handling Stuck Resources
 
 If step 1 times out and namespaces remain stuck in `Terminating` state, or function pods in
-`nvcf-backend` prevent cleanup, use the [force-cleanup-script](/nvcf/self-managed/troubleshooting). This script removes
+`nvcf-backend` prevent cleanup, use the [force-cleanup-script](../../self-managed/troubleshooting.md). This script removes
 finalizers on stuck NVCA resources, force-deletes function pods, and cleans up all NVCA
 namespaces.
 
@@ -745,6 +753,31 @@ Cleanup Script appendix in the self-hosted troubleshooting guide.
   ```bash
   kubectl describe nvcfbackends -n nvca-operator
   ```
+
+- Functions stuck in DEPLOYING with `failed calling webhook` and
+  `x509: certificate signed by unknown authority` in events: The NVCA webhook
+  serving certificate is not signed by the CA in the webhook `caBundle`. Check
+  each webhook configuration against the stored serving certificate:
+
+  ```bash
+  kubectl get secret nvca-webhook-tls-server-certs -n nvca-system \
+    -o jsonpath='{.data.tls\.crt}' | base64 -d > /tmp/nvca-tls.crt
+  for kind in validatingwebhookconfiguration mutatingwebhookconfiguration; do
+    kubectl get "$kind" nvca -o jsonpath='{.webhooks[0].clientConfig.caBundle}' \
+      | base64 -d > /tmp/nvca-ca.pem
+    echo "$kind: $(openssl verify -CAfile /tmp/nvca-ca.pem /tmp/nvca-tls.crt 2>&1 | tail -1)"
+  done
+  ```
+
+  If either line does not end in `OK`, force a rollout. The operator rewrites the
+  certificate Secrets and both webhook configurations from one certificate and CA:
+
+  ```bash
+  kubectl annotate -n nvca-operator --overwrite --all nvcfbackends \
+    nvca.nvcf.nvidia.io/forcedRolloutAt="$(date)"
+  ```
+
+  Run the check again to confirm both lines end in `OK`.
 
 - Agent fails to register with SIS (HTTP 401): The control plane could not
   validate the agent's PSAT against the recorded issuer and JWKS. Re-run

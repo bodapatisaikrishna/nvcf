@@ -112,6 +112,7 @@ class AuthzControllerIntegrationTest extends BaseIntegrationTest {
                 """
                         {"namespace":"nvcf","result":{"allowed":true,\
                         "ncaId":"test-nca-id",\
+                        "ownerNcaId":"test-nca-id",\
                         "ownerId":"yreDV0J-umh_ZWUVuJ2aBgtFCfvZeRjMw9hF6dvurUs",\
                         "policy":{"aud":"nvidia-cloud-functions-ncp-service-id-aketm",\
                         "policy":"test-policy-one"}\
@@ -205,6 +206,32 @@ class AuthzControllerIntegrationTest extends BaseIntegrationTest {
         assertThat(response.getHeaders().getCacheControl()).contains("max-age=60");
     }
 
+    // A caller must not assume ownerNcaId is always present in the result: it's omitted here,
+    // the same shape a caller would see from a pod still running a version that predates the
+    // field during a rolling upgrade.
+    @Test
+    void runAuthz_shouldOmitOwnerNcaId_whenKeyIntrospectionFails() {
+        String namespace = "nvcf";
+        String policyName = "apikey.allow";
+        String requestBody =
+                "{" +
+                "    \"input\": {" +
+                "        \"apiKey\": \"nvcfapi-test-non-existing-api-key-value\"" +
+                "    }" +
+                "}";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/v1/namespaces/{namespace}/evaluations/{policy-name}",
+                HttpMethod.POST, entity, String.class, namespace, policyName);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(response.getBody()).doesNotContain("ownerNcaId");
+    }
+
     @Test
     void runAuthz_shouldReturnErrorForInvalidPolicyName() {
         // Arrange
@@ -271,4 +298,99 @@ class AuthzControllerIntegrationTest extends BaseIntegrationTest {
                         "detail":"Api key is not provided",\
                         "instance":"/v1/namespaces/nvcf/evaluations/apikey.allow"}""", response.getBody());
     }
-} 
+
+    @Test
+    void runAuthz_shouldReturnTieredRateLimitForAccountRateLimitRuleBypassingApiKeyIntrospection() {
+        // Arrange
+        String namespace = "nvcf";
+        String policyName = "apikey.account_rate_limit";
+        String requestBody = """
+                {
+                    "input": {
+                        "tiered_rate_key": "some-nca-id"
+                    }
+                }
+                """;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+
+        // Act
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/v1/namespaces/{namespace}/evaluations/{policy-name}",
+                HttpMethod.POST, entity, String.class, namespace, policyName);
+
+        // Assert
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertJsonBodyEquals(
+                """
+                        {"namespace":"nvcf",\
+                        "result":{"inputTokenRateLimit":null,"outputTokenRateLimit":null},\
+                        "rule_name":"apikey.account_rate_limit"}""", response.getBody());
+    }
+
+    @Test
+    void runAuthz_shouldReturnErrorForMissingTieredRateKey() {
+        // Arrange
+        String namespace = "nvcf";
+        String policyName = "apikey.account_rate_limit";
+        String requestBody = """
+                {
+                    "input": {}
+                }
+                """;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+
+        // Act
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/v1/namespaces/{namespace}/evaluations/{policy-name}",
+                HttpMethod.POST, entity, String.class, namespace, policyName);
+
+        // Assert
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertJsonBodyEquals(
+                """
+                        {"type":"urn:nv-boot:problem-details:bad-request",\
+                        "title":"Bad Request",\
+                        "status":400,\
+                        "detail":"Tiered rate key is not provided",\
+                        "instance":"/v1/namespaces/nvcf/evaluations/apikey.account_rate_limit"}""", response.getBody());
+    }
+
+    @Test
+    void runAuthz_shouldReturnErrorForUnconfiguredNamespaceOnTieredRateLimitRule() {
+        // Arrange
+        String namespace = "unknown-ns";
+        String policyName = "apikey.account_rate_limit";
+        String requestBody = """
+                {
+                    "input": {
+                        "tiered_rate_key": "some-nca-id"
+                    }
+                }
+                """;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+
+        // Act
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/v1/namespaces/{namespace}/evaluations/{policy-name}",
+                HttpMethod.POST, entity, String.class, namespace, policyName);
+
+        // Assert
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertJsonBodyEquals(
+                """
+                        {"type":"urn:nv-boot:problem-details:bad-request",\
+                        "title":"Bad Request",\
+                        "status":400,\
+                        "detail":"Namespace 'unknown-ns' is not configured",\
+                        "instance":"/v1/namespaces/unknown-ns/evaluations/apikey.account_rate_limit"}""", response.getBody());
+    }
+}

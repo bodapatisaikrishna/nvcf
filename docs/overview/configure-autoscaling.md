@@ -1,6 +1,6 @@
 # Configure Function Autoscaling
 
-This page explains how to configure autoscaling on a deployed function using the NVCF API. For background on how the function autoscaler decides on instance counts, see the [Function Autoscaling Overview](/nvcf/self-managed/function-autoscaling-overview). For the full schema of the request and response bodies referenced below, see the [NVCF OpenAPI specification](https://api.nvcf.nvidia.com/v3/openapi).
+This page explains how to configure autoscaling on a deployed function using the NVCF API. For background on how the function autoscaler decides on instance counts, see the [Function Autoscaling Overview](../self-managed/autoscaling/index.md). For the full schema of the request and response bodies referenced below, see the [NVCF OpenAPI specification](https://api.nvcf.nvidia.com/v3/openapi).
 
 Use these two endpoints:
 
@@ -143,6 +143,8 @@ Both fields are ISO-8601 durations:
 - `size` is the length of the sliding window. Must be `<= PT1H`.
 - `threshold` is the amount of time within the window that utilization must stay past the scaling threshold. Must be `< size`.
 
+Utilization is sampled once per minute, so both durations are rounded to the nearest minute. Any positive duration counts as at least one minute.
+
 The threshold can be set to zero, but this would nullify the utilization metric. The scaling logic would effectively be collapsed into only scaling to/from zero/one instance(s).
 
 The example above scales up only if utilization exceeds 75 percent for at least 3 minutes in any 10-minute window.
@@ -164,6 +166,6 @@ The function version uses the platform's autoscaling policy after the policy cac
 
 ## See Also
 
-- [Function Autoscaling Overview](/nvcf/self-managed/function-autoscaling-overview) for what the function autoscaler does and what it depends on.
+- [Function Autoscaling Overview](../self-managed/autoscaling/index.md) for what the function autoscaler does and what it depends on.
 - [CLI](./cli.md) for `nvcf-cli function deploy create` and `nvcf-cli function deploy update`, which wrap the same API surface.
 - [NVCF OpenAPI specification](https://api.nvcf.nvidia.com/v3/openapi) for the full request and response schema of the endpoints used on this page.
