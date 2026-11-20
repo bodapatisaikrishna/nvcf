@@ -46,6 +46,7 @@ The gateway currently serves:
 An OpenAPI 3.1 specification describing the gateway transport contract, NVCF-specific headers, error format, and session affinity is published in [`api/openapi.yaml`](api/openapi.yaml).
 
 At runtime, the gateway serves:
+
 - Raw OpenAPI 3.1 YAML: `GET /openapi.yaml`
 - Interactive API documentation: `GET /docs`
 

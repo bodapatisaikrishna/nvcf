@@ -14,8 +14,8 @@ info:
     - **Rate-limit signaling**: Responses include standard rate-limiting headers such as `X-RateLimit-Limit-Requests` and `X-RateLimit-Remaining-Requests`.
   version: 0.14.0
 servers:
-  - url: http://localhost:8080
-    description: Local gateway
+  - url: /
+    description: Current gateway instance
 paths:
   /healthz:
     get:
@@ -200,6 +200,204 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateEmbeddingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '502':
+          $ref: '#/components/responses/BadGatewayError'
+      security:
+        - BearerAuth: []
+  /v1/decisions:
+    post:
+      summary: Forward decision request
+      description: |
+        Forwards a decision inference request to a decision model function via Stargate. The request body is forwarded unchanged except for the model field.
+      parameters:
+        - $ref: '#/components/parameters/NVCF-Function-ID'
+        - $ref: '#/components/parameters/NVCF-Target-Region'
+        - $ref: '#/components/parameters/Request-ID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - model
+              properties:
+                model:
+                  type: string
+                  description: Target decision model identifier.
+              additionalProperties: true
+      responses:
+        '200':
+          description: Successful decision response
+          headers:
+            X-RateLimit-Limit-Requests:
+              $ref: '#/components/headers/RateLimit-Limit-Requests'
+            X-RateLimit-Remaining-Requests:
+              $ref: '#/components/headers/RateLimit-Remaining-Requests'
+            X-RateLimit-Reset-Requests:
+              $ref: '#/components/headers/RateLimit-Reset-Requests'
+            X-RateLimit-Limit-Tokens:
+              $ref: '#/components/headers/RateLimit-Limit-Tokens'
+            X-RateLimit-Remaining-Tokens:
+              $ref: '#/components/headers/RateLimit-Remaining-Tokens'
+            X-RateLimit-Reset-Tokens:
+              $ref: '#/components/headers/RateLimit-Reset-Tokens'
+            X-Request-ID:
+              $ref: '#/components/headers/Response-Request-ID'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '502':
+          $ref: '#/components/responses/BadGatewayError'
+      security:
+        - BearerAuth: []
+  /v1/systemone:
+    post:
+      summary: Forward systemone request
+      description: |
+        Forwards a systemone decision request to a decision model function via Stargate. The request body is forwarded unchanged except for the model field.
+      parameters:
+        - $ref: '#/components/parameters/NVCF-Function-ID'
+        - $ref: '#/components/parameters/NVCF-Target-Region'
+        - $ref: '#/components/parameters/Request-ID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - model
+              properties:
+                model:
+                  type: string
+                  description: Target systemone model identifier.
+              additionalProperties: true
+      responses:
+        '200':
+          description: Successful systemone response
+          headers:
+            X-RateLimit-Limit-Requests:
+              $ref: '#/components/headers/RateLimit-Limit-Requests'
+            X-RateLimit-Remaining-Requests:
+              $ref: '#/components/headers/RateLimit-Remaining-Requests'
+            X-RateLimit-Reset-Requests:
+              $ref: '#/components/headers/RateLimit-Reset-Requests'
+            X-RateLimit-Limit-Tokens:
+              $ref: '#/components/headers/RateLimit-Limit-Tokens'
+            X-RateLimit-Remaining-Tokens:
+              $ref: '#/components/headers/RateLimit-Remaining-Tokens'
+            X-RateLimit-Reset-Tokens:
+              $ref: '#/components/headers/RateLimit-Reset-Tokens'
+            X-Request-ID:
+              $ref: '#/components/headers/Response-Request-ID'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '502':
+          $ref: '#/components/responses/BadGatewayError'
+      security:
+        - BearerAuth: []
+  /v1/messages:
+    post:
+      summary: Create messages response
+      description: |
+        Sends a request to a messages model endpoint. Supports both streaming (Server-Sent Events) and non-streaming responses.
+      parameters:
+        - $ref: '#/components/parameters/NVCF-Function-ID'
+        - $ref: '#/components/parameters/NVCF-Target-Region'
+        - $ref: '#/components/parameters/Request-ID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - model
+                - max_tokens
+                - messages
+              properties:
+                model:
+                  type: string
+                  description: Model identifier.
+                max_tokens:
+                  type: integer
+                  description: Maximum tokens to generate.
+                messages:
+                  type: array
+                  items:
+                    type: object
+                  description: Array of input messages.
+                stream:
+                  type: boolean
+                  default: false
+                  description: If true, sends partial message deltas as Server-Sent Events.
+                system:
+                  description: System prompt or instructions.
+                tools:
+                  type: array
+                  items:
+                    type: object
+                  description: Available tools for the model.
+              additionalProperties: true
+      responses:
+        '200':
+          description: Successful messages response
+          headers:
+            x-multi-turn-session-id:
+              $ref: '#/components/headers/MultiTurnSessionID'
+            X-RateLimit-Limit-Requests:
+              $ref: '#/components/headers/RateLimit-Limit-Requests'
+            X-RateLimit-Remaining-Requests:
+              $ref: '#/components/headers/RateLimit-Remaining-Requests'
+            X-RateLimit-Reset-Requests:
+              $ref: '#/components/headers/RateLimit-Reset-Requests'
+            X-RateLimit-Limit-Tokens:
+              $ref: '#/components/headers/RateLimit-Limit-Tokens'
+            X-RateLimit-Remaining-Tokens:
+              $ref: '#/components/headers/RateLimit-Remaining-Tokens'
+            X-RateLimit-Reset-Tokens:
+              $ref: '#/components/headers/RateLimit-Reset-Tokens'
+            X-Request-ID:
+              $ref: '#/components/headers/Response-Request-ID'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-Sent Events stream of message deltas
         '400':
           $ref: '#/components/responses/BadRequestError'
         '401':
@@ -417,6 +615,7 @@ components:
             - type: array
               items:
                 type: object
+            - type: 'null'
           description: The contents of the message.
         name:
           type: string
@@ -508,11 +707,20 @@ components:
           type: string
           description: Target embedding model identifier.
         input:
-          oneOf:
+          anyOf:
             - type: string
             - type: array
               items:
                 type: string
+              maxItems: 2048
+            - type: array
+              items:
+                type: integer
+            - type: array
+              items:
+                type: array
+                items:
+                  type: integer
               maxItems: 2048
           description: Input text or array of texts to embed.
         encoding_format:
@@ -559,6 +767,9 @@ components:
         index:
           type: integer
         embedding:
-          type: array
-          items:
-            type: number
+          oneOf:
+            - type: array
+              items:
+                type: number
+            - type: string
+              description: Base64-encoded embedding returned when encoding_format is base64.
